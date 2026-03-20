@@ -1,7 +1,6 @@
 const SPREADSHEET_ID = "1R-DKI16mwZT6nIGWdo858NEWCh3XOwZRHfAmIs142o8";
-const SHEET_NAME     = "Feuille 1";
 
-// ── JWT Auth ────────────────────────────────────────────────────────────────
+// ── JWT Auth ─────────────────────────────────────────────────────────────────
 async function getAccessToken() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
   const now = Math.floor(Date.now() / 1000);
@@ -38,29 +37,24 @@ async function getAccessToken() {
   return tokenData.access_token;
 }
 
-// ── Fetch sheet values ───────────────────────────────────────────────────────
-async function fetchSheetValues(accessToken) {
-  const range = encodeURIComponent(`${SHEET_NAME}!A1:O1000`);
+// ── Fetch one sheet tab ──────────────────────────────────────────────────────
+async function fetchTab(accessToken, tabName) {
+  const range = encodeURIComponent(`'${tabName}'!A1:G1000`);
   const url   = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
   const res   = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const data = await res.json();
-  if (!data.values) throw new Error("No values: " + JSON.stringify(data));
+  if (!data.values) throw new Error(`No values for tab "${tabName}": ` + JSON.stringify(data));
   return data.values;
 }
 
-// ── Parse one team from a column offset ─────────────────────────────────────
-// Sheet structure (0-indexed):
-//   Row 0 : "Team Hospi" ...  "Team RSSL"
-//   Row 1 : Sales Name | Lead Name | Last Activity | Next Step | Forecast Close | Comment | MRR
-//   Row 2+: data
-//   Hospi = cols 0-6   (A-G)
-//   RSSL  = cols 8-14  (I-O)
+// ── Parse rows into deals ────────────────────────────────────────────────────
+function parseRows(rows) {
+  if (rows.length < 3) return [];
 
-function parseTeam(rows, startCol) {
-  const headers = (rows[1] || []).slice(startCol, startCol + 7)
-    .map(h => (h || "").trim().toLowerCase());
+  // Row 0 = team title, Row 1 = headers, Row 2+ = data
+  const headers = (rows[1] || []).map(h => (h || "").trim().toLowerCase());
 
   const ci = (...pats) => {
     for (const p of pats) {
@@ -82,7 +76,7 @@ function parseTeam(rows, startCol) {
 
   for (let r = 2; r < rows.length; r++) {
     const row  = rows[r] || [];
-    const g    = (i) => i >= 0 ? String(row[startCol + i] || "").trim() : "";
+    const g    = (i) => i >= 0 ? String(row[i] || "").trim() : "";
     const lead = g(iLead);
     if (!lead) continue;
 
@@ -103,12 +97,9 @@ function parseTeam(rows, startCol) {
 
 function toISO(val) {
   if (!val) return "";
-  // Already ISO
   if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10);
-  // DD/MM/YYYY
   const m = val.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
-  // Google serial number
   const n = parseFloat(val);
   if (!isNaN(n) && n > 40000) {
     return new Date(Math.round((n - 25569) * 86400000)).toISOString().slice(0, 10);
@@ -122,7 +113,7 @@ function toMRR(val) {
   return isNaN(n) ? null : n;
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
+// ── Handler ──────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
@@ -130,11 +121,15 @@ export default async function handler(req, res) {
 
   try {
     const token = await getAccessToken();
-    const rows  = await fetchSheetValues(token);
+
+    const [hospiRows, rsslRows] = await Promise.all([
+      fetchTab(token, "Hospi"),
+      fetchTab(token, "RSSL"),
+    ]);
 
     res.status(200).json({
-      Hospi:     parseTeam(rows, 0),   // colonnes A-G
-      RSSL:      parseTeam(rows, 8),   // colonnes I-O
+      Hospi:     parseRows(hospiRows),
+      RSSL:      parseRows(rsslRows),
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {
