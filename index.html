@@ -351,7 +351,7 @@ body{font-family:'Inter',sans-serif;color:#111827}
 // ══════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════
-const SHEET_URL   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSIlJzTXTl1YgIRjfYK2s0mSvcVTx_LVCverNmbqp7qPsExQ-TnCtEbH_qNqDKjKsRp3_7Cb-e9WmSX/pubhtml?widget=true&headers=false";
+const API_URL = "/api/deals";
 const REFRESH_MS  = 10000;
 const ROTATION_MS = 90000;
 
@@ -454,14 +454,13 @@ function mrrNum(s){if(!s)return null;const n=parseFloat(s.replace(/[^\d.,]/g,"")
 // ══════════════════════════════════════════════════
 async function loadSheet(){
   try{
-    const r=await fetch(SHEET_URL+"&t="+Date.now());
+    const r=await fetch(API_URL+"?t="+Date.now());
     if(!r.ok)throw new Error(r.status);
-    const html=await r.text();
-    const parsed=parseHTML(html);
-    if(!parsed||(!parsed.RSSL.length&&!parsed.Hospi.length))throw new Error("empty");
+    const data=await r.json();
+    if(!data.RSSL&&!data.Hospi)throw new Error("empty");
     teamData={
-      RSSL:  parsed.RSSL.length  ? parsed.RSSL  : FALLBACK.RSSL,
-      Hospi: parsed.Hospi.length ? parsed.Hospi : FALLBACK.Hospi,
+      RSSL:  (data.RSSL  && data.RSSL.length)  ? data.RSSL  : FALLBACK.RSSL,
+      Hospi: (data.Hospi && data.Hospi.length) ? data.Hospi : FALLBACK.Hospi,
     };
     setStatus("live");
   }catch(e){
