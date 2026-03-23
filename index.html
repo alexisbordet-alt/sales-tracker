@@ -36,12 +36,19 @@ body{font-family:"Inter",sans-serif;color:#111827}
 
 /* KPIS */
 #kpis{flex-shrink:0;padding:10px 24px;display:flex;gap:10px;background:#f0f2f7}
-.kpi{flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:3px}
+.kpi{flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:11px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:4px}
 .kpi.h{border-top:3px solid #3b6ef8}
 .kpi.r{border-top:3px solid #7c3aed}
 .kpi-lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6b7280}
 .kpi-val{font-size:20px;font-weight:900;letter-spacing:-.02em;line-height:1}
 .kpi-sub{font-size:9px;color:#9ca3af}
+.kpi-bar{height:6px;border-radius:10px;background:#f3f4f6;margin-top:6px;overflow:hidden}
+.kpi-bar-fill{height:100%;border-radius:10px;transition:width .6s ease;min-width:3px}
+.kpi-pct{font-size:13px;font-weight:800;margin-top:2px}
+.kpi-obj{font-size:9px;color:#9ca3af;margin-top:1px}
+.kpi-progress{height:6px;background:#f3f4f6;border-radius:20px;overflow:hidden;margin-top:2px}
+.kpi-bar{height:100%;border-radius:20px;transition:width .8s ease;min-width:3px}
+.kpi-pct{font-size:11px;font-weight:800}
 
 /* MAIN */
 #main{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;overflow:hidden}
@@ -111,32 +118,48 @@ body{font-family:"Inter",sans-serif;color:#111827}
     <div class="kpi h">
       <div class="kpi-lbl">🍽️ Prévisionnel Hospi</div>
       <div class="kpi-val" id="kv-ph" style="color:#3b6ef8">0 €</div>
-      <div class="kpi-sub" id="ks-ph"></div>
+      <div class="kpi-progress"><div class="kpi-bar" id="kb-ph" style="background:#3b6ef8;width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="kpi-sub" id="ks-ph"></div>
+        <div class="kpi-pct" id="kp-ph" style="color:#3b6ef8"></div>
+      </div>
     </div>
     <div class="kpi h">
       <div class="kpi-lbl">🍽️ Atteint Hospi</div>
       <div class="kpi-val" id="kv-ah" style="color:#16a34a">0 €</div>
-      <div class="kpi-sub" id="ks-ah"></div>
+      <div class="kpi-progress"><div class="kpi-bar" id="kb-ah" style="background:#16a34a;width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="kpi-sub" id="ks-ah"></div>
+        <div class="kpi-pct" id="kp-ah" style="color:#16a34a"></div>
+      </div>
     </div>
     <div class="kpi r">
       <div class="kpi-lbl">🛍️ Prévisionnel RSSL</div>
       <div class="kpi-val" id="kv-pr" style="color:#7c3aed">0 €</div>
-      <div class="kpi-sub" id="ks-pr"></div>
+      <div class="kpi-progress"><div class="kpi-bar" id="kb-pr" style="background:#7c3aed;width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="kpi-sub" id="ks-pr"></div>
+        <div class="kpi-pct" id="kp-pr" style="color:#7c3aed"></div>
+      </div>
     </div>
     <div class="kpi r">
       <div class="kpi-lbl">🛍️ Atteint RSSL</div>
       <div class="kpi-val" id="kv-ar" style="color:#16a34a">0 €</div>
-      <div class="kpi-sub" id="ks-ar"></div>
+      <div class="kpi-progress"><div class="kpi-bar" id="kb-ar" style="background:#16a34a;width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="kpi-sub" id="ks-ar"></div>
+        <div class="kpi-pct" id="kp-ar" style="color:#16a34a"></div>
+      </div>
     </div>
     <div class="kpi">
-      <div class="kpi-lbl">🔥 Chauds total</div>
-      <div class="kpi-val" id="kv-hot" style="color:#16a34a">0</div>
-      <div class="kpi-sub">activité ≤ 2j</div>
+      <div class="kpi-lbl">🏆 Closés ce mois</div>
+      <div class="kpi-val" id="kv-closed-month" style="color:#16a34a">0</div>
+      <div class="kpi-sub" id="ks-closed-month"></div>
     </div>
     <div class="kpi">
       <div class="kpi-lbl">⚠️ À relancer</div>
       <div class="kpi-val" id="kv-risk" style="color:#dc2626">0</div>
-      <div class="kpi-sub">inactif > 7j</div>
+      <div class="kpi-sub">inactif &gt; 7j</div>
     </div>
   </div>
 
@@ -331,24 +354,43 @@ function startScroll(bodyId,team){
 function renderKPIs(){
   const all=[...(data.Hospi||[]),...(data.RSSL||[])];
 
-  // Hot & risk — based on lastActivity
-  const hot =all.filter(d=>daysSince(d.lastActivity)<=2).length;
+  // À relancer
   const risk=all.filter(d=>daysSince(d.lastActivity)>7).length;
-  document.getElementById("kv-hot").textContent=hot;
   document.getElementById("kv-risk").textContent=risk;
+
+  // Closés ce mois
+  const thisMonth = now().getMonth();
+  const thisYear  = now().getFullYear();
+  const closedMonth = all.filter(d => {
+    if(d.state !== "closed") return false;
+    const dt = new Date(d.forecastClose);
+    return !isNaN(dt.getTime()) && dt.getMonth()===thisMonth && dt.getFullYear()===thisYear;
+  });
+  const mrrClosedMonth = closedMonth.reduce((s,d)=>s+(d.mrr||0),0);
+  document.getElementById("kv-closed-month").textContent = closedMonth.length;
+  document.getElementById("ks-closed-month").textContent = mrrClosedMonth > 0
+    ? mrrClosedMonth.toLocaleString("fr-FR") + " € MRR"
+    : "aucun deal closé";
 
   // Previsionnel & Atteint
   const fmt=n=>n>0?n.toLocaleString("fr-FR")+" €":"0 €";
-  const sub=(v,o)=>o?Math.round(v/o*100)+"% — obj. "+o.toLocaleString("fr-FR")+" €":"";
 
-  document.getElementById("kv-ph").textContent=fmt(prev.Hospi);
-  document.getElementById("ks-ph").textContent=sub(prev.Hospi,objs.Hospi);
-  document.getElementById("kv-ah").textContent=fmt(closed.Hospi);
-  document.getElementById("ks-ah").textContent=sub(closed.Hospi,objs.Hospi);
-  document.getElementById("kv-pr").textContent=fmt(prev.RSSL);
-  document.getElementById("ks-pr").textContent=sub(prev.RSSL,objs.RSSL);
-  document.getElementById("kv-ar").textContent=fmt(closed.RSSL);
-  document.getElementById("ks-ar").textContent=sub(closed.RSSL,objs.RSSL);
+  function setKpi(valId, barId, subId, pctId, value, objectif) {
+    const pct = objectif > 0 ? Math.min(100, Math.round(value / objectif * 100)) : 0;
+    const el = document.getElementById(valId);
+    if(el) el.textContent = fmt(value);
+    const bar = document.getElementById(barId);
+    if(bar) bar.style.width = pct + "%";
+    const sub = document.getElementById(subId);
+    if(sub) sub.textContent = objectif ? "obj. " + objectif.toLocaleString("fr-FR") + " €" : "";
+    const pctEl = document.getElementById(pctId);
+    if(pctEl) pctEl.textContent = objectif ? pct + "%" : "";
+  }
+
+  setKpi("kv-ph","kb-ph","ks-ph","kp-ph", prev.Hospi,   objs.Hospi);
+  setKpi("kv-ah","kb-ah","ks-ah","kp-ah", closed.Hospi, objs.Hospi);
+  setKpi("kv-pr","kb-pr","ks-pr","kp-pr", prev.RSSL,    objs.RSSL);
+  setKpi("kv-ar","kb-ar","ks-ar","kp-ar", closed.RSSL,  objs.RSSL);
 
   // Counts
   document.getElementById("cnt-h").textContent=(data.Hospi||[]).length;
