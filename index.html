@@ -358,16 +358,10 @@ function renderKPIs(){
   const risk=all.filter(d=>daysSince(d.lastActivity)>7).length;
   document.getElementById("kv-risk").textContent=risk;
 
-  // Closés ce mois
-  const thisMonth = now().getMonth();
-  const thisYear  = now().getFullYear();
-  const closedMonth = all.filter(d => {
-    if(d.state !== "closed") return false;
-    const dt = new Date(d.forecastClose);
-    return !isNaN(dt.getTime()) && dt.getMonth()===thisMonth && dt.getFullYear()===thisYear;
-  });
-  const mrrClosedMonth = closedMonth.reduce((s,d)=>s+(d.mrr||0),0);
-  document.getElementById("kv-closed-month").textContent = closedMonth.length;
+  // Closés ce mois — tous deals avec state=closed
+  const closedAll = all.filter(d => d.state === "closed");
+  const mrrClosedMonth = closedAll.reduce((s,d)=>s+(d.mrr||0),0);
+  document.getElementById("kv-closed-month").textContent = closedAll.length;
   document.getElementById("ks-closed-month").textContent = mrrClosedMonth > 0
     ? mrrClosedMonth.toLocaleString("fr-FR") + " € MRR"
     : "aucun deal closé";
