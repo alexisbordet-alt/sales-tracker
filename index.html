@@ -212,6 +212,7 @@ let objs = {Hospi:null, RSSL:null};
 let closed = {Hospi:0, RSSL:0};
 let prev   = {Hospi:0, RSSL:0};
 let rafs   = {};
+let scrollPos = {Hospi:0, RSSL:0};
 
 // ── DATE UTILS ──────────────────────────────────────────
 function now(){return new Date()}
@@ -305,47 +306,58 @@ function makeCard(deal,cfg){
 }
 
 // ── INFINITE SCROLL ─────────────────────────────────────
-function startScroll(bodyId,team){
-  cancelAnimationFrame(rafs[team]);
-  const body=document.getElementById(bodyId);
-  if(!body)return;
+function startScroll(bodyId, team){
+  // Ne PAS annuler l'animation existante — juste mettre à jour les cartes
+  const body = document.getElementById(bodyId);
+  if(!body) return;
 
-  // Remove old tracks
-  body.innerHTML="";
+  const deals = data[team] || [];
+  const cfg   = CFG[team];
 
-  const deals=data[team]||[];
+  // Vide et reconstruit les deux tracks
+  body.innerHTML = "";
+
   if(!deals.length){
-    body.innerHTML='<div style="padding:30px;text-align:center;color:#9ca3af">Aucun deal</div>';
+    body.innerHTML = '<div style="padding:30px;text-align:center;color:#9ca3af;font-size:13px">Aucun deal</div>';
+    cancelAnimationFrame(rafs[team]);
     return;
   }
 
-  const cfg=CFG[team];
+  // Track A
+  const trackA = document.createElement("div");
+  trackA.style.cssText = "position:absolute;left:16px;right:16px;padding-top:10px;will-change:transform";
+  deals.forEach(d => trackA.appendChild(makeCard(d, cfg)));
+  body.appendChild(trackA);
 
-  // Build track
-  const track=document.createElement("div");
-  track.style.cssText="position:absolute;top:0;left:16px;right:16px;padding-top:10px";
-  deals.forEach(d=>track.appendChild(makeCard(d,cfg)));
-  body.appendChild(track);
+  // On attend 2 frames pour mesurer
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const h = trackA.offsetHeight + 12;
+    if(h <= 12) return;
 
-  // Wait for render then clone
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      const h=track.offsetHeight;
-      if(h===0)return;
-      const clone=track.cloneNode(true);
-      clone.style.top=h+"px";
-      body.appendChild(clone);
+    // Track B = clone exact positionné juste après A
+    const trackB = trackA.cloneNode(true);
+    trackB.style.cssText = trackA.style.cssText;
+    body.appendChild(trackB);
 
-      let pos=0;
-      (function tick(){
-        pos+=0.5;
-        if(pos>=h)pos-=h;
-        track.style.transform="translateY(-"+pos+"px)";
-        clone.style.transform="translateY(-"+pos+"px)";
-        rafs[team]=requestAnimationFrame(tick);
-      })();
-    });
-  });
+    // Reprend la position en cours pour ne pas sauter
+    cancelAnimationFrame(rafs[team]);
+    let pos = (scrollPos[team] || 0) % h;
+
+    function place(){
+      trackA.style.transform = "translateY(" + (-pos) + "px)";
+      trackB.style.transform = "translateY(" + (h - pos) + "px)";
+    }
+    place();
+
+    (function tick(){
+      pos += 0.4;
+      if(pos >= h) pos -= h;  // boucle parfaite : après le dernier → retour au premier
+      scrollPos[team] = pos;
+      trackA.style.transform = "translateY(" + (-pos) + "px)";
+      trackB.style.transform = "translateY(" + (h - pos) + "px)";
+      rafs[team] = requestAnimationFrame(tick);
+    })();
+  }));
 }
 
 // ── RENDER KPIs ─────────────────────────────────────────
